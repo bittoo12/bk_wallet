@@ -9,7 +9,7 @@ async function getNativeAndErcTokenBalance(address){
     const response = await axios.get(url, {
       headers: {
         accept: 'application/json',
-        'X-API-Key': apiKey,
+        'X-API-Key': process.env.MORALIS_API_KEY,
       },
     });
 
