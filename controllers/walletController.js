@@ -6,6 +6,7 @@ const {getHomeScreenData,sendCrypto,getTransactionById,getTransactionHistory,get
 
 exports.homeScreen = async (req, res) => {
         try {
+
           const result = await getHomeScreenData(req.body.address);
           return res.status(200).json({
             success: true,
@@ -25,8 +26,9 @@ exports.homeScreen = async (req, res) => {
       
       exports.sendCrypto = async (req, res) => {
         try {
-          const { privateKey, to, amount, chain } = req.body;
-          const result = await sendCrypto(privateKey, to, amount, chain);
+          const userId = req.user?._id;
+          const { privateKey, to, amount, chain,type,tokenAddress } = req.body;
+          const result = await sendCrypto(privateKey, to, amount, chain,type,userId,tokenAddress);
           return res.status(200).json({
             success: true,
             message: "Data retrieved successfully",

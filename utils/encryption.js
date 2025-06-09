@@ -24,13 +24,17 @@ const encrypt = (text) => {
 const decrypt = (encryptedBase64) => {
     const data = Buffer.from(encryptedBase64, 'base64');
     const iv = data.subarray(0, iv_length);
-    const encrypted = data.subarray(iv_length, data.length - 16);
-    const authTag = data.subarray(data.length - 16);
+    // const encrypted = data.subarray(iv_length, data.length - 16);
+    // const authTag = data.subarray(data.length - 16);
+
+    const authTag = data.subarray(iv_length, iv_length + 16);
+    const encrypted = data.subarray(iv_length + 16);
 
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
     decipher.setAuthTag(authTag);
-
+    console.log("decipher is ->",decipher)
     const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    console.log("-----")
     return decrypted.toString('utf8');
 }
 

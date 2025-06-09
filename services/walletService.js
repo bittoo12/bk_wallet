@@ -1,5 +1,5 @@
 const axios = require('axios');
-
+const {transferERC20Token,transferETH} = require('./../utils/transfer-crypto')
 
 
 async function getNativeAndErcTokenBalance(address){
@@ -110,7 +110,16 @@ try {
 };
 
 // Send ETH from one address to another using private key
-async function sendCrypto  (privateKey, to, amount, chain = process.env.chain) {
+async function sendCrypto  (privateKey, to, amount, chain = process.env.chain,type,userId,tokenAddress) {
+  //case : 1 -> for native
+let tx;
+  if(type == 'ERC20') {
+    tx =  transferERC20Token(to,amount,userId,tokenAddress)
+  }else if (type == 'NATIVE'){
+    tx =  transferETH(to,amount,userId,tokenAddress=null)
+  }
+
+  return tx;
 };
 
 // Get transaction details by hash

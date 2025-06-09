@@ -1,9 +1,17 @@
-export const TOKENS = {
+ const TOKENS = {
     USDC : {
         address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
         decimals: 6,
         symbol: "USDC",
         name: "USD Coin",
+        network: "Ethereum",
+        type: "ERC20"
+    },
+    BRIDGETOKEN : {
+	address : "0x1Da20BF1e5E5AEA2834239cB1319535fB23f2343",
+	decimals: 18,
+        symbol: "BT",
+        name: "BRIDGE TOKEN",
         network: "Ethereum",
         type: "ERC20"
     },
@@ -40,7 +48,7 @@ export const TOKENS = {
     }
 }
 
-export const ERC20_ABI = [
+ const ERC20_ABI = [
     {
         "constant": true,
         "inputs": [],
@@ -263,7 +271,7 @@ export const ERC20_ABI = [
     }
 ]
 
-export const ERC1155_ABI = [
+ const ERC1155_ABI = [
 	{
 		"anonymous": false,
 		"inputs": [
@@ -577,4 +585,11 @@ export const ERC1155_ABI = [
 		"type": "function"
 	}
 ]
+
+
+module.exports = {
+	ERC1155_ABI,
+	ERC20_ABI,
+	TOKENS
+}
 
