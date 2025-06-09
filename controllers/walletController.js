@@ -12,7 +12,7 @@ exports.homeScreen = async (req, res) => {
             message: "Data retrieved successfully",
             data : result
           });
-          res.json(result);
+          
         } catch (err) {
           // res.status(500).json({ error: err.message });
           return res.status(500).json({
@@ -27,7 +27,6 @@ exports.homeScreen = async (req, res) => {
         try {
           const { privateKey, to, amount, chain } = req.body;
           const result = await sendCrypto(privateKey, to, amount, chain);
-          // res.json(result);
           return res.status(200).json({
             success: true,
             message: "Data retrieved successfully",
@@ -47,7 +46,6 @@ exports.homeScreen = async (req, res) => {
         try {
           const { id } = req.params;
           const result = await getTransactionById(id);
-          // res.json(result);
           return res.status(200).json({
             success: true,
             message: "Data retrieved successfully",
@@ -73,7 +71,6 @@ exports.homeScreen = async (req, res) => {
           }
       
           const result = await getTransactionHistory(address, chain, filter);
-          // return res.status(200).json(result);
           return res.status(200).json({
             success: true,
             message: "Data retrieved successfully",
@@ -92,7 +89,6 @@ exports.homeScreen = async (req, res) => {
         try {
           const { address } = req.params;
           const result = await getNFTs(address); // calling service
-          // res.status(200).json({ success: true, data: result });
           return res.status(200).json({
             success: true,
             message: "Data retrieved successfully",

@@ -36,37 +36,7 @@ async function getNativeAndErcTokenBalance(address){
   }
 }
 
-
-
-// Get home screen data (tokens, NFTs, transactions)
-exports.getHomeScreenData = async (address) => {
-
-  //Get Native & ERC20 Token Balances by Wallet : chain : eth
-
- const balances = await getNativeAndErcTokenBalance(address);
-
- const transactions = await getTransactionHistory(address);
-
- return {
-  balances,
-  transactions
- }
-   
-  
-  
-};
-
-// Send ETH from one address to another using private key
-exports.sendCrypto = async (privateKey, to, amount, chain = process.env.chain) => {
-};
-
-// Get transaction details by hash
-exports.getTransactionById = async (txHash) => {
-};
-
-
-
-exports.getTransactionHistory = async (address, chain = process.env.CHAIN || 'eth', filter = 'all') => {
+async function getTransactionHistory(address, chain = process.env.CHAIN || 'eth', filter = 'all') {
   let ethObj = {};
   let tronObj = {};
 
@@ -113,8 +83,47 @@ exports.getTransactionHistory = async (address, chain = process.env.CHAIN || 'et
 };
 
 
+
+// Get home screen data (tokens, NFTs, transactions)
+async function getHomeScreenData(address) {
+
+  //Get Native & ERC20 Token Balances by Wallet : chain : eth
+console.log("entered->>")
+try {
+  const balances = await getNativeAndErcTokenBalance(address);
+  console.log("balances finder",balances);
+  const transactions = await getTransactionHistory(address);
+  console.log("transaction finder",transactions)
+  return {
+    balances,
+    transactions
+   }
+}catch(err){
+  console.error('Ethereum Error:', error.response?.data || error.message);
+  throw new Error('Failed to fetch  wallet ');
+}
+
+
+   
+  
+  
+};
+
+// Send ETH from one address to another using private key
+async function sendCrypto  (privateKey, to, amount, chain = process.env.chain) {
+};
+
+// Get transaction details by hash
+async function getTransactionById (txHash) {
+};
+
+
+
+
+
+
 // Fetch NFTs
-exports.getNFTs = async (address, chain = 'eth') => {
+async function getNFTs (address, chain = 'eth')  {
   try {
     const response = await axios.get(
       `https://deep-index.moralis.io/api/v2.2/${address}/nft/transfers`,
@@ -141,3 +150,12 @@ exports.getNFTs = async (address, chain = 'eth') => {
   }
 };
 
+
+
+module.exports = {
+  getNFTs,
+  getTransactionById,
+  sendCrypto,
+  getHomeScreenData,
+  getTransactionHistory
+}
