@@ -1,49 +1,143 @@
 const axios = require('axios');
-// const Web3 = require('web3');
-// const web3 = new Web3(new Web3.providers.HttpProvider(process.env.INFURA_URL));
-// const moralis = axios.create({
-//   baseURL: 'https://deep-index.moralis.io/api/v2',
-//   headers: { 'X-API-Key': process.env.MORALIS_API_KEY },
-// });
 
+
+
+async function getNativeAndErcTokenBalance(address){
+  const url = `https://deep-index.moralis.io/api/v2.2/wallets/${address}/tokens?chain=eth`;
+  
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': apiKey,
+      },
+    });
+
+    if (!response.data || !response.data.result) {
+      throw new Error('Invalid response structure from Moralis API');
+    }
+
+   return  response.data.result
+  } catch (error) {
+    if (error.response) {
+      // Server responded with a status code outside 2xx
+      console.error(
+        `API Error: ${error.response.status} - ${error.response.statusText}`
+      );
+      console.error('Response data:', error.response.data);
+    } else if (error.request) {
+      // No response received
+      console.error('No response received from Moralis API:', error.request);
+    } else {
+      // Other errors
+      console.error('Error:', error.message);
+    }
+    throw error; // re-throw after logging
+  }
+}
+
+
+
+// Get home screen data (tokens, NFTs, transactions)
 exports.getHomeScreenData = async (address) => {
-  const [tokens, nfts, txs] = await Promise.all([
-    moralis.get(`/wallets/${address}/balances?chain=eth`),
-    moralis.get(`/wallets/${address}/nft?chain=eth`),
-    moralis.get(`/wallets/${address}/transactions?chain=eth`),
-  ]);
-  return {
-    totalBalance: tokens.data.reduce((acc, token) => acc + parseFloat(token.balance), 0),
-    assets: tokens.data,
-    recentTransactions: txs.data.result.slice(0, 5),
-  };
+
+  //Get Native & ERC20 Token Balances by Wallet : chain : eth
+
+ const balances = await getNativeAndErcTokenBalance(address);
+
+ const transactions = await getTransactionHistory(address);
+
+ return {
+  balances,
+  transactions
+ }
+   
+  
+  
 };
 
-exports.sendCrypto = async (privateKey, to, amount, chain = 'eth') => {
-  const account = web3.eth.accounts.privateKeyToAccount(privateKey);
-  const tx = {
-    to,
-    value: web3.utils.toWei(amount, 'ether'),
-    gas: 21000,
-  };
-  const signed = await account.signTransaction(tx);
-  return await web3.eth.sendSignedTransaction(signed.rawTransaction);
+// Send ETH from one address to another using private key
+exports.sendCrypto = async (privateKey, to, amount, chain = process.env.chain) => {
 };
 
+// Get transaction details by hash
 exports.getTransactionById = async (txHash) => {
-  const tx = await web3.eth.getTransaction(txHash);
-  return tx;
 };
 
-exports.getTransactionHistory = async (address, chain = 'eth', filter = 'all') => {
-  const txs = await moralis.get(`/wallets/${address}/transactions`, { params: { chain } });
-  let filtered = txs.data.result;
-  if (filter === 'sent') filtered = filtered.filter(tx => tx.from_address.toLowerCase() === address.toLowerCase());
-  if (filter === 'received') filtered = filtered.filter(tx => tx.to_address.toLowerCase() === address.toLowerCase());
-  return filtered;
+
+
+exports.getTransactionHistory = async (address, chain = process.env.CHAIN || 'eth', filter = 'all') => {
+  let ethObj = {};
+  let tronObj = {};
+
+  try {
+    if (chain === 'eth' ) {
+      const response = await axios.get(`https://deep-index.moralis.io/api/v2.2/wallets/${address}/history`, {
+        headers: {
+          'X-API-Key': process.env.MORALIS_API_KEY,
+          accept: 'application/json',
+        },
+        params: {
+          chain: 'eth',
+          order: 'DESC',
+        },
+      });
+
+      ethObj = response.data;
+    }
+  } catch (error) {
+    console.error('Ethereum Error:', error.response?.data || error.message);
+    throw new Error('Failed to fetch Ethereum wallet history');
+  }
+
+  try {
+    if (chain === 'tron') {
+      // Placeholder Tron response, replace with TronGrid or real API
+      tronObj = {
+        message: 'Tron support not implemented yet',
+        transactions: [],
+      };
+    }
+  } catch (error) {
+    console.error('Tron Error:', error.response?.data || error.message);
+    throw new Error('Failed to fetch Tron wallet history');
+  }
+
+  return {
+    success: true,
+    data: {
+      eth: ethObj,
+      tron: tronObj,
+    },
+  };
 };
 
+
+// Fetch NFTs
 exports.getNFTs = async (address, chain = 'eth') => {
-  const res = await moralis.get(`/wallets/${address}/nft`, { params: { chain } });
-  return res.data.result;
+  try {
+    const response = await axios.get(
+      `https://deep-index.moralis.io/api/v2.2/${address}/nft/transfers`,
+      {
+        headers: {
+          'X-API-Key': process.env.MORALIS_API_KEY,
+          accept: 'application/json',
+        },
+        params: {
+          chain,
+          format: 'decimal',
+          order: 'DESC',
+        },
+      }
+    );
+
+    const erc1155NFTs = response.data.result.filter(nft => nft.contract_type === 'ERC1155');
+    return erc1155NFTs;
+  } catch (error) {
+    console.error('Moralis NFT API Error:', error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || 'Failed to fetch NFT transfer history'
+    );
+  }
 };
+

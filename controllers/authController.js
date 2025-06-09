@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const {generateNextAddress} = require('./../utils/addressCreator')
 const mongoose = require('mongoose');
+const WalletAddress = require("../models/WalletAddress");
 
 function generateReferralCode(length = 8) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -26,191 +27,113 @@ function createReferralLink(referralCode, baseUrl = 'https://example.com/referra
 }
 
 
+// File: controllers/authController.js
+
 const register = async (req, res) => {
-        try {
-          const schema = Joi.object({
-            country: Joi.string().required(),
-            fullName: Joi.string().required(),
-            userName: Joi.string().required(),
-            email: Joi.string().email().required(),
-            mobileNumber: Joi.string().pattern(/^[0-9]{10}$/).required(),
-            countryCode: Joi.string().required(),
-            password: Joi.string().min(6).required(),
-          });
-      
-          const { error } = schema.validate(req.body);
-          if (error) return res.status(400).json({ error: error.details[0].message });
-      
-          const {
-            country,
-            fullName,
-            userName,
-            email,
-            mobileNumber,
-            countryCode,
-            password
-          } = req.body;
-      
-          const existingUser = await User.findOne({
-            $or: [{ email }, { mobileNumber }, { userName }]
-          });
-          if (existingUser) return res.status(400).json({ error: "User already exists" });
-      
-          const hashedPassword = await bcrypt.hash(password, 10);
-      
-          // Generate OTPs
-          const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
-          const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
+  try {
+    const schema = Joi.object({
+      country: Joi.string().required(),
+      fullName: Joi.string().required(),
+      userName: Joi.string().required(),
+      email: Joi.string().email().required(),
+      mobileNumber: Joi.string().pattern(/^[0-9]{10}$/).required(),
+      countryCode: Joi.string().required(),
+      password: Joi.string().min(6).required(),
+    });
 
-          const uniqueReferralCode = await generateReferralCode();
-          const uniqueReferralLink =  await createReferralLink(uniqueReferralCode)
-       
-          const newUser = new User({
-            country,
-            fullName,
-            userName,
-            email,
-            mobileNumber,
-            countryCode,
-            password: hashedPassword,
-            emailOtp,
-            emailOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
-            mobileOtp,
-            mobileOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
-            referralCode : uniqueReferralCode,
-            referralLink : uniqueReferralLink
+    const { error } = schema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
 
-          });
-      
-          // Send OTPs (dummy for now)
-          // await sendEmail(email, "Your Email OTP", `OTP: ${emailOtp}`);
-          // await sendSMS(mobileNumber, `Your Mobile OTP: ${mobileOtp}`);
-      
-          // const token = generateToken(newUser);
-          const user = await newUser.save();
-          const userId = user._id;
-          await generateNextAddress('admin',userId);  
-      
-          res.status(201).json({
-            message: "User registered. OTPs sent to email and mobile.",
-            // token,
-            // user: {
-            //   fullName: newUser.fullName,
-            //   mobileNumber: newUser.mobileNumber,
-            //   countryCode: newUser.countryCode,
-            //   email: newUser.email,
-            // },
-          });
-        } catch (err) {
-          console.error("Registration error:", err);
-          res.status(500).json({ error: "Internal Server Error" });
-        }
-      };
-      
+    const {
+      country,
+      fullName,
+      userName,
+      email,
+      mobileNumber,
+      countryCode,
+      password
+    } = req.body;
 
+    const existingUser = await User.findOne({
+      $or: [{ email }, { mobileNumber }, { userName }]
+    });
+    if (existingUser) return res.status(400).json({ error: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const uniqueReferralCode = await generateReferralCode();
+    const uniqueReferralLink = await createReferralLink(uniqueReferralCode);
+
+    const newUser = new User({
+      country,
+      fullName,
+      userName,
+      email,
+      mobileNumber,
+      countryCode,
+      password: hashedPassword,
+      emailOtp,
+      emailOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      mobileOtp,
+      mobileOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      referralCode: uniqueReferralCode,
+      referralLink: uniqueReferralLink
+    });
+
+    const user = await newUser.save();
+    await generateNextAddress('admin', user._id);
+
+    res.status(201).json({
+      message: "User registered. OTPs sent to email and mobile."
+    });
+  } catch (err) {
+    console.error("Registration error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 const login = async (req, res) => {
-        try {
-          const { mobileNumber, password, countryCode, pin } = req.body;
-      
-          let user;
-          let isMatch = false;
-      
-          // Case 1: Login with PIN only
-          if (pin) {
-            user = await User.findOne({ pin: { $ne: null } }); // Find any user with a set PIN
-            if (!user) return res.status(404).json({ message: "No user has set a PIN" });
-      
-            isMatch = await bcrypt.compare(pin, user.pin);
-            if (!isMatch) return res.status(401).json({ message: "Invalid PIN" });
-          } 
-          // Case 2: Login with mobileNumber + password
-          else {
-            if (!mobileNumber || !password || !countryCode) {
-              return res.status(400).json({ message: "Mobile number, password and country code are required" });
-            }
-      
-            user = await User.findOne({ mobileNumber, countryCode });
-            if (!user) return res.status(404).json({ message: "User not found" });
-      
-            isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch) return res.status(401).json({ message: "Invalid password" });
-          }
-      
-          // Generate JWT token
-          const token = generateToken(user);
-      
-          return res.status(200).json({
-            message: "Login successful",
-            token,
-            user: {
-              fullName: user.fullName,
-              mobileNumber: user.mobileNumber,
-              countryCode: user.countryCode,
-              email: user.email,
-            },
-          });
-        } catch (error) {
-          console.error("Login Error:", error);
-          return res.status(500).json({ message: "Internal Server Error" });
-        }
-      };
-      
+  try {
+    const { mobileNumber, password, countryCode, pin } = req.body;
+    let user, isMatch = false;
+
+    if (pin) {
+      user = await User.findOne({ pin: { $ne: null } });
+      if (!user) return res.status(404).json({ message: "No user has set a PIN" });
+
+      isMatch = await bcrypt.compare(pin, user.pin);
+      if (!isMatch) return res.status(401).json({ message: "Invalid PIN" });
+    } else {
+      if (!mobileNumber || !password || !countryCode) {
+        return res.status(400).json({ message: "Mobile number, password and country code are required" });
+      }
+      user = await User.findOne({ mobileNumber, countryCode });
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) return res.status(401).json({ message: "Invalid password" });
+    }
+
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        fullName: user.fullName,
+        mobileNumber: user.mobileNumber,
+        countryCode: user.countryCode,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 const sendOrResendOtp = async (req, res) => {
-        try {
-          const { email, mobileNumber, countryCode, via } = req.body;
-      
-          // Validate 'via' method
-          if (!via || (via !== "email" && via !== "mobile")) {
-            return res.status(400).json({ message: "Invalid 'via' method. Use 'email' or 'mobile'" });
-          }
-      
-          let user;
-      
-          if (via === "email") {
-            if (!email) return res.status(400).json({ message: "Email is required" });
-      
-            user = await User.findOne({ email });
-            if (!user) return res.status(404).json({ message: "User not found with this email" });
-      
-            // Generate and update email OTP
-            const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
-            user.emailOtp = emailOtp;
-            user.emailOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-            await user.save();
-      
-            // Send email OTP (dummy)
-            // await sendEmail(email, "Your OTP", `Your OTP is: ${emailOtp}`);
-          }
-      
-          if (via === "mobile") {
-            if (!mobileNumber || !countryCode) {
-              return res.status(400).json({ message: "Mobile number and country code are required" });
-            }
-      
-            user = await User.findOne({ mobileNumber, countryCode });
-            if (!user) return res.status(404).json({ message: "User not found with this mobile number" });
-      
-            // Generate and update mobile OTP
-            const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
-            user.mobileOtp = mobileOtp;
-            user.mobileOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-            await user.save();
-      
-            // Send mobile OTP (dummy)
-            // await sendSMS(`${countryCode}${mobileNumber}`, `Your OTP is: ${mobileOtp}`);
-          }
-      
-          return res.status(200).json({ message: `OTP sent successfully via ${via}` });
-        } catch (err) {
-          console.error("OTP Send Error:", err);
-          return res.status(500).json({ message: "Internal Server Error" });
-        }
-      };
-      
-
-
-const forgotPassword = async (req, res) => {
   try {
     const { email, mobileNumber, countryCode, via } = req.body;
 
@@ -225,36 +148,57 @@ const forgotPassword = async (req, res) => {
 
       user = await User.findOne({ email });
       if (!user) return res.status(404).json({ message: "User not found with this email" });
-    } else if (via === "mobile") {
+
+      const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      user.emailOtp = emailOtp;
+      user.emailOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    } else {
       if (!mobileNumber || !countryCode) {
         return res.status(400).json({ message: "Mobile number and country code are required" });
       }
 
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "User not found with this mobile number" });
-    }
 
-    const token = jwt.sign(
-        { userId: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: "15m" }
-      );
+      const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      user.mobileOtp = mobileOtp;
+      user.mobileOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    }
 
     await user.save();
+    return res.status(200).json({ message: `OTP sent successfully via ${via}` });
+  } catch (err) {
+    console.error("OTP Send Error:", err);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
- 
-    const resetLink = `http://64.227.133.77:4041/api/v1/auth/reset-password?token=${token}`;
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, mobileNumber, countryCode, via } = req.body;
 
-   
-
-
-    if (via === "email") {
-      // await sendEmail(user.email, "Password Reset", `Reset your password: ${resetLink}`);
-    } else {
-//       await sendSMS(user.mobileNumber, `Reset your password: ${resetLink}`);
+    if (!via || (via !== "email" && via !== "mobile")) {
+      return res.status(400).json({ message: "Invalid 'via' method. Use 'email' or 'mobile'" });
     }
 
-    return res.status(200).json({ message: `Reset link sent via ${via}`,resetLink:resetLink });
+    let user;
+
+    if (via === "email") {
+      if (!email) return res.status(400).json({ message: "Email is required" });
+      user = await User.findOne({ email });
+    } else {
+      if (!mobileNumber || !countryCode) {
+        return res.status(400).json({ message: "Mobile number and country code are required" });
+      }
+      user = await User.findOne({ mobileNumber, countryCode });
+    }
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "15m" });
+    const resetLink = `http://64.227.133.77:4041/api/v1/auth/reset-password?token=${token}`;
+
+    return res.status(200).json({ message: `Reset link sent via ${via}`, resetLink });
   } catch (err) {
     console.error("Forgot Password Error:", err);
     return res.status(500).json({ message: "Internal Server Error" });
@@ -266,31 +210,22 @@ const resetPassword = async (req, res) => {
     const { token } = req.query;
     const { password } = req.body;
 
-
-
     if (!token) return res.status(400).json({ error: "Token is required" });
-    if (!password || password.length < 6)
+    if (!password || password.length < 6) {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
 
-    // Verify token
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
-
     } catch (err) {
-      logger.error(err);
       return res.status(400).json({ error: "Invalid or expired token" });
     }
 
-    // Find user by ID from token
     const user = await User.findById(payload.userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Update password
-    user.password = hashedPassword;
+    user.password = await bcrypt.hash(password, 10);
     await user.save();
 
     res.status(200).json({ message: "Password reset successful" });
@@ -301,80 +236,49 @@ const resetPassword = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
-        try {
-          const { otp, email, mobileNumber, countryCode, type } = req.body;
-      
-          if (!otp || !type || !["email", "mobile"].includes(type)) {
-            return res.status(400).json({ error: "OTP and valid type (email/mobile) required" });
-          }
-      
-          let user;
-          if (email) {
-            user = await User.findOne({ email });
-          } else if (mobileNumber && countryCode) {
-            user = await User.findOne({ mobileNumber, countryCode });
-          } else {
-            return res.status(400).json({ error: "Email or mobileNumber with countryCode required" });
-          }
-      
-          if (!user) return res.status(404).json({ error: "User not found" });
-      
-          if (type === "email") {
-            // if (user.emailOtp !== otp) return res.status(400).json({ error: "Invalid Email OTP" });
-            // if (user.emailOtpExpiry < Date.now()) return res.status(400).json({ error: "Email OTP expired" });
-            user.isEmailVerified = true;
-            user.emailOtp = undefined;
-            user.emailOtpExpiry = undefined;
-          } else if (type === "mobile") {
-            // if (user.mobileOtp !== otp) return res.status(400).json({ error: "Invalid Mobile OTP" });
-            // if (user.mobileOtpExpiry < Date.now()) return res.status(400).json({ error: "Mobile OTP expired" });
-            user.isMobileVerified = true;
-            user.mobileOtp = undefined;
-            user.mobileOtpExpiry = undefined;
-          }
+  try {
+    const { otp, email, mobileNumber, countryCode, type } = req.body;
 
+    if (!otp || !type || !["email", "mobile"].includes(type)) {
+      return res.status(400).json({ error: "OTP and valid type (email/mobile) required" });
+    }
+
+    let user;
+    if (email) {
+      user = await User.findOne({ email });
+    } else if (mobileNumber && countryCode) {
+      user = await User.findOne({ mobileNumber, countryCode });
+    } else {
+      return res.status(400).json({ error: "Email or mobileNumber with countryCode required" });
+    }
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (type === "email") {
+      user.isEmailVerified = true;
+      user.emailOtp = undefined;
+      user.emailOtpExpiry = undefined;
+    } else {
+      user.isMobileVerified = true;
+      user.mobileOtp = undefined;
+      user.mobileOtpExpiry = undefined;
+    }
 
     const token = generateToken(user);
-      
-          await user.save();
+    await user.save();
 
-
-   
-      
-          res.status(201).json({
-            message: `${type === "email" ? "Email" : "Mobile"} OTP verified successfully`,
-            token,
-            // user: {
-            //   fullName: newUser.fullName,
-            //   mobileNumber: newUser.mobileNumber,
-            //   countryCode: newUser.countryCode,
-            //   email: newUser.email,
-            // },
-          });
-          
-      
-          res.json({ message: `${type === "email" ? "Email" : "Mobile"} OTP verified successfully` });
-        } catch (error) {
-          console.error("Verify OTP error:", error);
-          res.status(500).json({ error: "Internal Server Error" });
-        }
-      };
+    res.status(200).json({
+      message: `${type === "email" ? "Email" : "Mobile"} OTP verified successfully`,
+      token
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
       
 const setPin = async (req, res) => {
         try {
-          // const authHeader = req.headers.authorization;
-          // if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          //   return res.status(401).json({ error: "Authorization token missing or malformed" });
-          // }
-      
-          // const token = authHeader.split(" ")[1];
-          // let decoded;
-          // try {
-          //   decoded = jwt.verify(token, process.env.JWT_SECRET);
-          // } catch (err) {
-          //   return res.status(401).json({ error: "Invalid or expired token" });
-          // }
-      
           const userId = req.user._id;
           if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ error: "Invalid user ID" });
@@ -401,53 +305,100 @@ const setPin = async (req, res) => {
         }
       };
 
+const getProfile = async (req, res) => {
+        try {
+          const userId = req.user?._id;
+      
+          // Validate userId presence
+          if (!userId) {
+            return res.status(400).json({ success: false, message: "User ID is missing from request." });
+          }
+      
+          // Validate userId format
+          if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ success: false, message: "Invalid user ID format." });
+          }
+      
+          // Fetch user profile
+          const user = await User.findById(userId).select(
+            'country fullName userName email mobileNumber pin password countryCode profilePhoto -_id'
+          );
+      
+          if (!user) {
+            return res.status(404).json({ success: false, message: "User not found." });
+          }
+      
+          return res.status(200).json({
+            success: true,
+            message: "User profile retrieved successfully.",
+            data: user
+          });
+      
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
+          return res.status(500).json({
+            success: false,
+            message: "Internal server error while fetching profile.",
+            error: err.message
+          });
+        }
+      };
 
-const getProfile = async(req,res)=>{
-  const userId = req.user._id;
-
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
-  const user = await User.findById(userId).select('country fullName userName email mobileNumber pin password countryCode profilePhoto -_id');;
-
-  res.json({message:"Success",data:user});
-}
 
 
 const updateProfile = async (req, res) => {
   try {
-    const userId = req.user._id; // coming from authMiddleware
-    const { email, mobileNumber, countryCode, profilePhoto, pin, password } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is missing from request." });
+    }
+
+    const {
+      email,
+      mobileNumber,
+      countryCode,
+      profilePhoto,
+      pin,
+      password
+    } = req.body;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
 
-    // Check for email uniqueness if updated
+    // ✅ Email update check
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
-      if (existingEmail) return res.status(400).json({ message: "Email already in use" });
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: "Email is already in use." });
+      }
       user.email = email;
-      user.isEmailVerified = false; // reset verification
+      user.isEmailVerified = false;
     }
 
-    // Check for mobile number uniqueness if updated
+    // ✅ Mobile number update check
     if (mobileNumber && mobileNumber !== user.mobileNumber) {
       const existingMobile = await User.findOne({ mobileNumber });
-      if (existingMobile) return res.status(400).json({ message: "Mobile number already in use" });
+      if (existingMobile) {
+        return res.status(400).json({ success: false, message: "Mobile number is already in use." });
+      }
       user.mobileNumber = mobileNumber;
-      user.isMobileVerified = false; // reset verification
+      user.isMobileVerified = false;
     }
 
+    // ✅ Optional fields
     if (countryCode) user.countryCode = countryCode;
     if (profilePhoto) user.profilePhoto = profilePhoto;
 
-    // Update and hash PIN
+    // ✅ PIN update with hashing
     if (pin) {
       const salt = await bcrypt.genSalt(10);
       user.pin = await bcrypt.hash(pin, salt);
     }
 
-    // Update and hash Password
+    // ✅ Password update with hashing
     if (password) {
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
@@ -455,10 +406,48 @@ const updateProfile = async (req, res) => {
 
     await user.save();
 
-    res.status(200).json({ message: "Profile updated successfully" });
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully."
+    });
+
   } catch (err) {
-    console.error("Update profile failed:", err);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error updating profile:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error. Please try again later.",
+      error: err.message
+    });
+  }
+};
+
+const receiveCrypto = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID not found in request." });
+    }
+
+    const wallets = await WalletAddress.find({ userId }).select('address qrCodeBase64 -_id');
+
+    if (!wallets || wallets.length === 0) {
+      return res.status(404).json({ success: false, message: "No wallet addresses found for this user." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Wallet addresses retrieved successfully.",
+      data: wallets
+    });
+
+  } catch (err) {
+    console.error("Error in receiveCrypto:", err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching wallet addresses.",
+      error: err.message
+    });
   }
 };
 
@@ -468,4 +457,4 @@ const updateProfile = async (req, res) => {
 
 
 
-module.exports = { register,login,sendOrResendOtp,forgotPassword,resetPassword ,verifyOtp,setPin,getProfile,updateProfile};
+module.exports = { receiveCrypto,register,login,sendOrResendOtp,forgotPassword,resetPassword ,verifyOtp,setPin,getProfile,updateProfile};

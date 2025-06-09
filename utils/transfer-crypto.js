@@ -1,3 +1,4 @@
+import { decrypt } from "./encryption";
 
 const mongoose = require("mongoose");
 const ethers = require('ethers');
@@ -37,7 +38,11 @@ export const transferERC20Token = async (toAddress, amount, userId, tokenAddress
             throw new Error("Wallet address not found");
         }
 
-        const privateKey = walletAddress.privateKey;
+        let privateKey = walletAddress.privateKey;
+
+        //decrypt private key here
+        privateKey  = decrypt(privateKey);
+
         const provider = new ethers.provider.JsonRpcProvider(process.env.RPC_URL);
         const account = new ethers.Wallet(privateKey, provider);
 
@@ -129,6 +134,9 @@ export const transferETH = async (toAddress, amount, userId) => {
             throw new Error("Wallet address not found");
         }
         const privateKey = walletAddress.privateKey;
+
+        //decrypt private key here
+        privateKey  = decrypt(privateKey);
         const provider = new ethers.provider.JsonRpcProvider(process.env.RPC_URL);
         const account = new ethers.Wallet(privateKey, provider);
 

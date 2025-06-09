@@ -29,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1", authRoutes);
 app.use("/api/v1",uploadRoute);
-app.use('/api/wallet', walletRoutes);
+app.use('/api/v1/wallet', walletRoutes);
 const swaggerDocument = YAML.load('./swagger.yaml');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Connect to DB and start server
@@ -37,7 +37,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
   const userId = "admin";
 
-  // await createInitialWallet(userId);      // To be called once to create admin wallet
+  await createInitialWallet(userId);      // To be called once to create admin wallet
   // await createAddressForOwner(userId, mnemonic, 0); // To be called once to create first address
   // await generateNextAddress(userId);      // Reusable to create more addresses
   app.listen(process.env.PORT, () =>
