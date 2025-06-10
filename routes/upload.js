@@ -1,19 +1,21 @@
-const express = require('express');
-const multer = require('multer');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { v4: uuidv4 } = require('uuid');
-const mime = require('mime-types');
-require('dotenv').config();
+import express from 'express';
+import multer from 'multer';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { v4 as uuidv4 } from 'uuid';
+import mime from 'mime-types';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const router = express.Router();
 
-// ✅ Correct endpoint
+// S3 client setup for DigitalOcean Spaces
 const s3 = new S3Client({
-  region: "blr1",
-  endpoint: "https://blr1.digitaloceanspaces.com",
+  region: 'blr1',
+  endpoint: 'https://blr1.digitaloceanspaces.com',
   credentials: {
-    accessKeyId: "DO80187G68RA9M8W6EVX",
-    secretAccessKey: "pkQp79k7YBnzdS6m+Em3AKV7w1g8uPbuF4kC1Qk7wIA"
+    accessKeyId: process.env.DO_ACCESS_KEY,
+    secretAccessKey: process.env.DO_SECRET_KEY,
   },
 });
 
@@ -22,7 +24,6 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 router.post('/upload-image', upload.single('image'), async (req, res) => {
- 
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
@@ -31,7 +32,7 @@ router.post('/upload-image', upload.single('image'), async (req, res) => {
     const s3Key = `uploads/${uniqueFileName}`;
 
     const params = {
-      Bucket: "globalwalletspacedev",
+      Bucket: 'globalwalletspacedev',
       Key: s3Key,
       Body: req.file.buffer,
       ContentType: req.file.mimetype,
@@ -48,4 +49,4 @@ router.post('/upload-image', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

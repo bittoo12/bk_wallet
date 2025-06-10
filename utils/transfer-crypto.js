@@ -1,175 +1,113 @@
-// import { decrypt } from "./encryption";
-const {decrypt}   = require('./encryption')
-const mongoose = require("mongoose");
-const ethers = require('ethers');
-const  WalletAddress =  require('./../models/WalletAddress');
-const { ERC20_ABI, TOKENS } = require('./constants.js') 
-const dotenv = require("dotenv");
+import mongoose from 'mongoose';
+import { ethers } from 'ethers';
+import dotenv from 'dotenv';
+import { decrypt } from './encryption.js';
+import WalletAddress from '../models/WalletAddress.js';
+import { ERC20_ABI, TOKENS } from './constants.js';
+
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI;
-
 const connectDB = async () => {
-    await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+  await mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
 };
 
- const transferERC20Token = async (toAddress, amount, userId, tokenAddress) => {
-    try {
-
-        // Fetch token details
-        console.log("tokenAddress",tokenAddress);
-        const token = findTokenDetails(tokenAddress);
-
-        // Check if token is valid
-        if (!token) {
-            throw new Error("Token not found");
-        }
-
-        // Check if token is ERC20
-        if (token.type !== "ERC20") {
-            throw new Error("Token is not ERC20");
-        }
-
-        // Connect to MongoDB
-        // await connectDB();
-        const walletAddress = await WalletAddress.findOne({ userId: userId });
-
-        // Check if wallet address exists
-        if (!walletAddress) {
-            throw new Error("Wallet address not found");
-        }
-
-        let privateKey = walletAddress.privateKey;
-
-        //decrypt private key here
-        privateKey  = decrypt(privateKey);
-
-        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
-        const account = new ethers.Wallet(privateKey, provider);
-
-        // Disconnect from MongoDB
-        // await mongoose.disconnect();
-    
-        // Contract instance
-        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, account);
-
-        let formattedAmount = amount.toString();
-        //ethers.utils.parseUnits(amount.toString(), token.decimals).toString();
-
-        // Check if the sender has enough balance
-        const balance = await tokenContract.balanceOf(account.address);
-        const formattedBalance = ethers.utils.formatUnits(balance, token.decimals);
-        console.log("formattedBalance",formattedBalance);
-        console.log("formattedAmount",formattedAmount)
-
-        if (formattedBalance < formattedAmount) {
-            throw new Error("Insufficient balance");
-        }
-    
-        // Transfer tokens
-        formattedAmount = ethers.utils.parseUnits(amount.toString(), token.decimals).toString();
-
-        const tx = await tokenContract.transfer(toAddress, formattedAmount);
-        await tx.wait();
-
-        console.log(`Transferred ${formattedAmount} ${token.symbol} from ${account.address} to ${toAddress}`);
-        return tx;
-
-    } catch (error) {
-        console.error("Error transferring tokens:", error);
-        throw new Error("Token transfer failed");
-    }
-}
-
 const findTokenDetails = (tokenAddress) => {
-    const token = Object.values(TOKENS).find(token => token.address == tokenAddress);
-    if (!token) {
-        throw new Error("Token not found");
+  const token = Object.values(TOKENS).find(token => token.address === tokenAddress);
+  if (!token) {
+    throw new Error('Token not found');
+  }
+  console.log('Token details:', token);
+  return token;
+};
+
+const transferERC20Token = async (toAddress, amount, userId, tokenAddress) => {
+  try {
+    const token = findTokenDetails(tokenAddress);
+
+    if (token.type !== 'ERC20') {
+      throw new Error('Token is not ERC20');
     }
-    console.log("Token details:", token);
-    return token;
-}
 
- const transferNFT = async (toAddress, tokenId, amount, userId) => {
-    try {
-        // Connect to Mongodb
-        await connectDB();
-        const walletAddress = await WalletAddress.findOne({ ownerId: userId });
+    const walletAddress = await WalletAddress.findOne({ userId });
+    if (!walletAddress) throw new Error('Wallet address not found');
 
-        // Check if wallet address exists
-        if (!walletAddress) {
-            throw new Error("Wallet address not found");    
-        }
+    const privateKey = decrypt(walletAddress.privateKey);
+    const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+    const account = new ethers.Wallet(privateKey, provider);
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, account);
 
-        const privateKey = walletAddress.privateKey;
-        const provider = new ethers.provider.JsonRpcProvider(process.env.RPC_URL);
-        const account = new ethers.Wallet(privateKey, provider);
+    const balance = await tokenContract.balanceOf(account.address);
+    const formattedBalance = ethers.utils.formatUnits(balance, token.decimals);
 
-        // Disconnect from MongoDB
-        await mongoose.disconnect();
-
-        // Contract instance
-        const contractAddress = TOKENS.NFT.address;
-        const abi = TOKENS.NFT.abi;
-        const nftContract = new ethers.Contract(contractAddress, abi, account);
-
-        // Transfer NFT
-        const tx = await nftContract.safeTransferFrom(account.address, toAddress, tokenId, amount, "0x0");
-        await tx.wait();
-
-        console.log(`Transferred NFT with tokenId ${tokenId} from ${account.address} to ${toAddress}`);
-        return tx;
-        
-    } catch (error) {
-        console.error("Error transferring NFT:", error);
-        throw new Error("NFT transfer failed");
-        
+    if (Number(formattedBalance) < Number(amount)) {
+      throw new Error('Insufficient balance');
     }
-}
 
- const transferETH = async (toAddress, amount, userId,tokenAddress) => {
-    try {
-        // Connect to Mongodb
-        // await connectDB();
+    const formattedAmount = ethers.utils.parseUnits(amount.toString(), token.decimals).toString();
+    const tx = await tokenContract.transfer(toAddress, formattedAmount);
+    await tx.wait();
 
-        let walletAddress = await WalletAddress.findOne({ userId: userId });
-        console.log("->>>>wallet address is ->",walletAddress)
-        // Check if wallet address exists
-        if (!walletAddress) {
-            throw new Error("Wallet address not found");
-        }
-        let privateKey = walletAddress.privateKey;
+    console.log(`Transferred ${formattedAmount} ${token.symbol} from ${account.address} to ${toAddress}`);
+    return tx;
+  } catch (error) {
+    console.error('Error transferring tokens:', error.message);
+    throw new Error(error.message);
+  }
+};
 
-        //decrypt private key here
-        privateKey  = decrypt(privateKey);
-        console.log("private key is ->",privateKey)
-        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
-        const account = new ethers.Wallet(privateKey, provider);
+const transferNFT = async (toAddress, tokenId, amount, userId) => {
+  try {
+    await connectDB();
+    const walletAddress = await WalletAddress.findOne({ ownerId: userId });
+    if (!walletAddress) throw new Error('Wallet address not found');
 
-        // Disconnect from MongoDB
-        // await mongoose.disconnect();s
+    const privateKey = decrypt(walletAddress.privateKey);
+    const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+    const account = new ethers.Wallet(privateKey, provider);
 
-        // Transfer ETH
-        console.log("toAddress",toAddress,"value",amount)
-        const tx = await account.sendTransaction({
-            to: toAddress,
-            value: ethers.utils.parseEther(amount.toString()),
-            // gasLimit:30000
-        });
-        await tx.wait();
+    await mongoose.disconnect();
 
-        console.log(`Transferred ${amount} ETH from ${account.address} to ${toAddress}`);
-        
-        return tx;
-    }
-    catch (error) {
-        console.error("Error transferring ETH:", error);
-        throw new Error("ETH transfer failed");
-    }
-}
+    const { address: contractAddress, abi } = TOKENS.NFT;
+    const nftContract = new ethers.Contract(contractAddress, abi, account);
+    const tx = await nftContract.safeTransferFrom(account.address, toAddress, tokenId, amount, '0x0');
+    await tx.wait();
 
-module.exports = {
-    transferETH ,
-    transferNFT,
-    transferERC20Token
-}
+    console.log(`Transferred NFT tokenId ${tokenId} from ${account.address} to ${toAddress}`);
+    return tx;
+  } catch (error) {
+    console.error('Error transferring NFT:', error.message);
+    throw new Error('NFT transfer failed');
+  }
+};
+
+const transferETH = async (toAddress, amount, userId) => {
+  try {
+    const walletAddress = await WalletAddress.findOne({ userId });
+    if (!walletAddress) throw new Error('Wallet address not found');
+
+    const privateKey = decrypt(walletAddress.privateKey);
+    const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+    const account = new ethers.Wallet(privateKey, provider);
+
+    const tx = await account.sendTransaction({
+      to: toAddress,
+      value: ethers.utils.parseEther(amount.toString()),
+    });
+    await tx.wait();
+
+    console.log(`Transferred ${amount} ETH from ${account.address} to ${toAddress}`);
+    return tx;
+  } catch (error) {
+    console.error('Error transferring ETH:', error.message);
+    throw new Error(error.message);
+  }
+};
+
+export {
+  transferETH,
+  transferNFT,
+  transferERC20Token,
+};

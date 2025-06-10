@@ -1,7 +1,7 @@
-// utils/generateToken.js
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const generateToken = (user) => {
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+
+export const generateToken = (user) => {
   return jwt.sign(
     {
       _id: user._id,
@@ -10,16 +10,11 @@ const generateToken = (user) => {
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     }
   );
 };
 
-
-
-
-const generateResetToken = () => {
-  return crypto.randomBytes(32).toString("hex");
+export const generateResetToken = () => {
+  return crypto.randomBytes(32).toString('hex');
 };
-
-module.exports = { generateToken,generateResetToken}

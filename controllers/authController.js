@@ -1,15 +1,15 @@
-const Joi = require("joi");
-const User = require("./../models/user.model");
-const sendEmail = require("../utils/sendEmail");
-const sendSMS = require("../utils/sendSMS");
-const bcrypt = require("bcryptjs");
-const {generateToken }= require("../utils/generateToken"); 
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const {generateNextAddress} = require('./../utils/addressCreator')
-const mongoose = require('mongoose');
-const WalletAddress = require("../models/WalletAddress");
-const {passwordEncrypt,decryptPassword}=require('./../utils/encryption');
+import Joi from 'joi';
+import User from './../models/user.model.js';
+// import sendEmail from '../utils/sendEmail.js';
+// import sendSMS from '../utils/sendSMS.js';
+// import bcrypt from 'bcryptjs';
+import { generateToken } from '../utils/generateToken.js';
+// import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { generateNextAddress } from './../utils/addressCreator.js';
+import mongoose from 'mongoose';
+import WalletAddress from '../models/WalletAddress.js';
+import { passwordEncrypt, decryptPassword } from './../utils/encryption.js';
 
 function generateReferralCode(length = 8) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -23,15 +23,11 @@ function generateReferralCode(length = 8) {
 }
 
 function createReferralLink(referralCode, baseUrl = 'https://example.com/referral') {
-  console.log(`${baseUrl}?code=${referralCode}`)
+  console.log(`${baseUrl}?code=${referralCode}`);
   return `${baseUrl}?code=${referralCode}`;
 }
 
-
-
-// File: controllers/authController.js
-
-const register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const schema = Joi.object({
       country: Joi.string().required(),
@@ -61,8 +57,7 @@ const register = async (req, res) => {
     });
     if (existingUser) return res.status(400).json({ error: "User already exists" });
 
-    // const hashedPassword = await bcrypt.hash(password, 10);
-    const hashedPassword = await passwordEncrypt(password)
+    const hashedPassword = await passwordEncrypt(password);
     const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const uniqueReferralCode = await generateReferralCode();
@@ -82,13 +77,13 @@ const register = async (req, res) => {
       mobileOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
       referralCode: uniqueReferralCode,
       referralLink: uniqueReferralLink,
-      profilePhoto:null,
-      language :'ENG',
-      currency:'INR',
-      notification:true
+      profilePhoto: null,
+      language: 'ENG',
+      currency: 'INR',
+      notification: true
     });
 
-    console.log("newUser->>>>",newUser)
+    console.log("newUser->>>>", newUser);
 
     const user = await newUser.save();
     await generateNextAddress('admin', user._id);
@@ -102,7 +97,7 @@ const register = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { mobileNumber, password, countryCode, pin } = req.body;
     let user, isMatch = false;
@@ -111,9 +106,8 @@ const login = async (req, res) => {
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "No user has set a PIN" });
 
-      // isMatch = await bcrypt.compare(pin, user.pin);
-      const decryptedPin = decryptPassword(user.pin.encryptedData,user.pin.key,user.pin.iv);
-      if(decryptedPin == pin) {
+      const decryptedPin = decryptPassword(user.pin.encryptedData, user.pin.key, user.pin.iv);
+      if (decryptedPin == pin) {
         isMatch = true;
       }
       if (!isMatch) return res.status(401).json({ message: "Invalid PIN" });
@@ -123,13 +117,12 @@ const login = async (req, res) => {
       }
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "User not found" });
-console.log("user->>>",user);
-      // isMatch = await bcrypt.compare(password, user.password);
-      // const encryptedPassword = passwordEncrypt(password);
-      const decryptedPassword = decryptPassword(user.password.encryptedData,user.password.key,user.password.iv);
-    if(decryptedPassword == password) {
-      isMatch = true;
-    }
+      console.log("user->>>", user);
+
+      const decryptedPassword = decryptPassword(user.password.encryptedData, user.password.key, user.password.iv);
+      if (decryptedPassword == password) {
+        isMatch = true;
+      }
       if (!isMatch) return res.status(401).json({ message: "Invalid password" });
     }
 
@@ -143,10 +136,10 @@ console.log("user->>>",user);
         mobileNumber: user.mobileNumber,
         countryCode: user.countryCode,
         email: user.email,
-        profilePhoto : user.profilePhoto,
-        currency:user.currency,
-        language:user.language,
-        notification:user.notification
+        profilePhoto: user.profilePhoto,
+        currency: user.currency,
+        language: user.language,
+        notification: user.notification
       },
     });
   } catch (error) {
@@ -155,7 +148,12 @@ console.log("user->>>",user);
   }
 };
 
-const sendOrResendOtp = async (req, res) => {
+
+
+
+
+
+export const sendOrResendOtp = async (req, res) => {
   try {
     const { email, mobileNumber, countryCode, via } = req.body;
 
@@ -167,7 +165,6 @@ const sendOrResendOtp = async (req, res) => {
 
     if (via === "email") {
       if (!email) return res.status(400).json({ message: "Email is required" });
-
       user = await User.findOne({ email });
       if (!user) return res.status(404).json({ message: "User not found with this email" });
 
@@ -178,7 +175,6 @@ const sendOrResendOtp = async (req, res) => {
       if (!mobileNumber || !countryCode) {
         return res.status(400).json({ message: "Mobile number and country code are required" });
       }
-
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "User not found with this mobile number" });
 
@@ -195,7 +191,10 @@ const sendOrResendOtp = async (req, res) => {
   }
 };
 
-const forgotPassword = async (req, res) => {
+
+
+
+export const forgotPassword = async (req, res) => {
   try {
     const { email, mobileNumber, countryCode, via } = req.body;
 
@@ -227,7 +226,7 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
     const { token } = req.query;
     const { password } = req.body;
@@ -247,7 +246,7 @@ const resetPassword = async (req, res) => {
     const user = await User.findById(payload.userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    user.password = await bcrypt.hash(password, 10);
+    user.password = await passwordEncrypt(password);
     await user.save();
 
     res.status(200).json({ message: "Password reset successful" });
@@ -257,7 +256,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
-const verifyOtp = async (req, res) => {
+export const verifyOtp = async (req, res) => {
   try {
     const { otp, email, mobileNumber, countryCode, type } = req.body;
 
@@ -298,139 +297,92 @@ const verifyOtp = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-      
-const setPin = async (req, res) => {
-        try {
-          const userId = req.user._id;
-          if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ error: "Invalid user ID" });
-          } // Assuming you encoded user id as 'id' in JWT
-          console.log(userId,req.user)
-          const { pin } = req.body;
-          if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-            return res.status(400).json({ error: "PIN must be a 4-digit number" });
-          }
-      
-          const user = await User.findById(userId);
-          if (!user) {
-            return res.status(404).json({ error: "User not found" });
-          }
-      
-          const hashedPin = passwordEncrypt(pin);
-          user.pin = hashedPin;
-          await user.save();
-      
-          res.json({ message: "PIN set successfully" });
-        } catch (error) {
-          console.error("Set PIN error:", error);
-          res.status(500).json({ error: "Internal Server Error" });
-        }
-      };
 
-const getProfile = async (req, res) => {
-        try {
-          const userId = req.user?._id;
-      
-          // Validate userId presence
-          if (!userId) {
-            return res.status(400).json({ success: false, message: "User ID is missing from request." });
-          }
-      
-          // Validate userId format
-          if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ success: false, message: "Invalid user ID format." });
-          }
-      
-          // Fetch user profile
-          const user = await User.findById(userId).select(
-            'country fullName userName email mobileNumber pin password countryCode language currency notification profilePhoto -_id'
-          );
-      
-          if (!user) {
-            return res.status(404).json({ success: false, message: "User not found." });
-          }
-      
-          return res.status(200).json({
-            success: true,
-            message: "User profile retrieved successfully.",
-            data: user
-          });
-      
-        } catch (err) {
-          console.error("Error fetching user profile:", err);
-          return res.status(500).json({
-            success: false,
-            message: "Internal server error while fetching profile.",
-            error: err.message
-          });
-        }
-      };
+export const setPin = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
 
+    const { pin } = req.body;
+    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      return res.status(400).json({ error: "PIN must be a 4-digit number" });
+    }
 
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-const updateProfile = async (req, res) => {
+    user.pin = passwordEncrypt(pin);
+    await user.save();
+
+    res.json({ message: "PIN set successfully" });
+  } catch (error) {
+    console.error("Set PIN error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+export const getProfile = async (req, res) => {
   try {
     const userId = req.user?._id;
 
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "User ID is missing from request." });
-    }
+    if (!userId) return res.status(400).json({ success: false, message: "User ID is missing from request." });
+    if (!mongoose.Types.ObjectId.isValid(userId)) return res.status(400).json({ success: false, message: "Invalid user ID format." });
 
-    const {
-      email,
-      mobileNumber,
-      countryCode,
-      profilePhoto,
-      pin,
-      password,
-      notification,
-      currency,
-      language
-    } = req.body;
+    const user = await User.findById(userId).select(
+      "country fullName userName email mobileNumber pin password countryCode language currency notification profilePhoto -_id"
+    );
+
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+
+    return res.status(200).json({
+      success: true,
+      message: "User profile retrieved successfully.",
+      data: user
+    });
+  } catch (err) {
+    console.error("Error fetching user profile:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching profile.",
+      error: err.message
+    });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(400).json({ success: false, message: "User ID is missing from request." });
+
+    const { email, mobileNumber, countryCode, profilePhoto, pin, password, notification, currency, language } = req.body;
 
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found." });
-    }
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
 
-    // ✅ Email update check
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
-      if (existingEmail) {
-        return res.status(400).json({ success: false, message: "Email is already in use." });
-      }
+      if (existingEmail) return res.status(400).json({ success: false, message: "Email is already in use." });
       user.email = email;
       user.isEmailVerified = false;
     }
 
-    // ✅ Mobile number update check
     if (mobileNumber && mobileNumber !== user.mobileNumber) {
       const existingMobile = await User.findOne({ mobileNumber });
-      if (existingMobile) {
-        return res.status(400).json({ success: false, message: "Mobile number is already in use." });
-      }
+      if (existingMobile) return res.status(400).json({ success: false, message: "Mobile number is already in use." });
       user.mobileNumber = mobileNumber;
       user.isMobileVerified = false;
     }
 
-    // ✅ Optional fields
     if (countryCode) user.countryCode = countryCode;
     if (profilePhoto) user.profilePhoto = profilePhoto;
-    if(notification) user.notification = notification
-    if(currency) user.currency = currency
-    if(language) user.language = language
+    if (notification) user.notification = notification;
+    if (currency) user.currency = currency;
+    if (language) user.language = language;
 
-    // ✅ PIN update with hashing
-    if (pin) {
-      // const salt = await bcrypt.genSalt(10);
-      user.pin = passwordEncrypt(pin)
-    }
-
-    // ✅ Password update with hashing
-    if (password) {
- 
-      user.password = passwordEncrypt(password);
-    }
+    if (pin) user.pin = passwordEncrypt(pin);
+    if (password) user.password = passwordEncrypt(password);
 
     await user.save();
 
@@ -438,7 +390,6 @@ const updateProfile = async (req, res) => {
       success: true,
       message: "Profile updated successfully."
     });
-
   } catch (err) {
     console.error("Error updating profile:", err);
     return res.status(500).json({
@@ -449,26 +400,19 @@ const updateProfile = async (req, res) => {
   }
 };
 
-const receiveCrypto = async (req, res) => {
+export const receiveCrypto = async (req, res) => {
   try {
     const userId = req.user?._id;
+    if (!userId) return res.status(400).json({ success: false, message: "User ID not found in request." });
 
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "User ID not found in request." });
-    }
-
-    const wallets = await WalletAddress.find({ userId }).select('address qrCodeBase64 -_id');
-
-    if (!wallets || wallets.length === 0) {
-      return res.status(404).json({ success: false, message: "No wallet addresses found for this user." });
-    }
+    const wallets = await WalletAddress.find({ userId }).select("address qrCodeBase64 -_id");
+    if (!wallets || wallets.length === 0) return res.status(404).json({ success: false, message: "No wallet addresses found for this user." });
 
     return res.status(200).json({
       success: true,
       message: "Wallet addresses retrieved successfully.",
       data: wallets
     });
-
   } catch (err) {
     console.error("Error in receiveCrypto:", err.message);
     return res.status(500).json({
@@ -484,5 +428,3 @@ const receiveCrypto = async (req, res) => {
 
 
 
-
-module.exports = { receiveCrypto,register,login,sendOrResendOtp,forgotPassword,resetPassword ,verifyOtp,setPin,getProfile,updateProfile};

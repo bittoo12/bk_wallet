@@ -1,44 +1,40 @@
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema(
   {
-    country: String,
-    fullName: String,
-    userName: { type: String, unique: true },
-    email: { type: String, unique: true },
-    mobileNumber: { type: String, unique: true },
-    countryCode: String,
-    password: {
-      type : Object
-    },
-    emailOtp: String,
-    emailOtpExpiry: Date,
-    mobileOtp: String,
-    mobileOtpExpiry: Date,
+    country: { type: String },
+    fullName: { type: String },
+    userName: { type: String, unique: true, sparse: true },
+    email: { type: String, unique: true, sparse: true },
+    mobileNumber: { type: String, unique: true, sparse: true },
+    countryCode: { type: String },
+
+    password: { type: Object }, // Prefer hashed string in real use
+    pin: { type: Object },
+
+    emailOtp: { type: String },
+    emailOtpExpiry: { type: Date },
+    mobileOtp: { type: String },
+    mobileOtpExpiry: { type: Date },
+
     isEmailVerified: { type: Boolean, default: false },
     isMobileVerified: { type: Boolean, default: false },
+
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
-    referralCode: { type: String, unique: true },
-    referralLink: { type: String, unique: true },
+
+    referralCode: { type: String, unique: true, sparse: true },
+    referralLink: { type: String, unique: true, sparse: true },
+
     profilePhoto: { type: String },
-    pin: {
-      type: Object,
-    },
-    language: {
-      type: String,
-      default : 'ENG'
-    },
-    currency: {
-      type: String,
-      default : 'INR'
-    },
-    notification: {
-      type: Boolean,
-      default : true
-    }, //on or off
+
+    language: { type: String, default: 'ENG' },
+    currency: { type: String, default: 'INR' },
+    notification: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("User", userSchema);
+// Export the model in ESM
+const User = mongoose.model('User', userSchema);
+export default User;

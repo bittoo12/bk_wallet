@@ -1,10 +1,19 @@
-const axios = require('axios');
-const {transferERC20Token,transferETH} = require('./../utils/transfer-crypto')
+import axios from 'axios';
+import { request, gql,GraphQLClient } from 'graphql-request';
+import { transferERC20Token, transferETH } from '../utils/transfer-crypto.js';
+const endpoint = 'https://streaming.bitquery.io/eap';
+import WalletAddress from './../models/WalletAddress.js'
+const graphQLClient = new GraphQLClient(endpoint, {
+  headers: {
+    Authorization: `Bearer ${process.env.GRAPHQL_TOKEN}` // or use an API key
+    // Example: 'X-API-Key': process.env.MY_API_KEY
+  },
+});
 
-
-async function getNativeAndErcTokenBalance(address){
+async function getNativeAndErcTokenBalance(address) {
+  console.log("under->",address)
   const url = `https://deep-index.moralis.io/api/v2.2/wallets/${address}/tokens?chain=eth`;
-  
+
   try {
     const response = await axios.get(url, {
       headers: {
@@ -17,122 +26,114 @@ async function getNativeAndErcTokenBalance(address){
       throw new Error('Invalid response structure from Moralis API');
     }
 
-   return  response.data.result
+    return response.data.result;
   } catch (error) {
     if (error.response) {
-      // Server responded with a status code outside 2xx
-      console.error(
-        `API Error: ${error.response.status} - ${error.response.statusText}`
-      );
+      console.error(`API Error: ${error.response.status} - ${error.response.statusText}`);
       console.error('Response data:', error.response.data);
     } else if (error.request) {
-      // No response received
       console.error('No response received from Moralis API:', error.request);
     } else {
-      // Other errors
       console.error('Error:', error.message);
     }
-    throw error; // re-throw after logging
+    throw error;
   }
 }
 
 async function getTransactionHistory(address, chain = process.env.CHAIN || 'eth', filter = 'all') {
-  let ethObj = {};
-  let tronObj = {};
-
+ 
+  console.log("under->",address)
   try {
-    if (chain === 'eth' ) {
-      const response = await axios.get(`https://deep-index.moralis.io/api/v2.2/wallets/${address}/history`, {
-        headers: {
-          'X-API-Key': process.env.MORALIS_API_KEY,
-          accept: 'application/json',
-        },
-        params: {
-          chain: 'eth',
-          order: 'DESC',
-        },
-      });
+    if (chain === 'eth') {
+      const response = await axios.get(
+        `https://deep-index.moralis.io/api/v2.2/wallets/${address}/history`,
+        {
+          headers: {
+            'X-API-Key': process.env.MORALIS_API_KEY,
+            accept: 'application/json',
+          },
+          params: {
+            chain: 'eth',
+            order: 'DESC',
+          },
+        }
+      );
 
-      ethObj = response.data;
+    return response.data;
     }
   } catch (error) {
     console.error('Ethereum Error:', error.response?.data || error.message);
     throw new Error('Failed to fetch Ethereum wallet history');
   }
 
-  try {
-    if (chain === 'tron') {
-      // Placeholder Tron response, replace with TronGrid or real API
-      tronObj = {
-        message: 'Tron support not implemented yet',
-        transactions: [],
-      };
-    }
-  } catch (error) {
-    console.error('Tron Error:', error.response?.data || error.message);
-    throw new Error('Failed to fetch Tron wallet history');
-  }
-
-  return {
-    success: true,
-    data: {
-      eth: ethObj,
-      tron: tronObj,
-    },
-  };
-};
 
 
-
-// Get home screen data (tokens, NFTs, transactions)
-async function getHomeScreenData(address) {
-
-  //Get Native & ERC20 Token Balances by Wallet : chain : eth
-console.log("entered->>")
-try {
-  const balances = await getNativeAndErcTokenBalance(address);
-  console.log("balances finder",balances);
-  const transactions = await getTransactionHistory(address);
-  console.log("transaction finder",transactions)
-  return {
-    balances,
-    transactions
-   }
-}catch(err){
-  console.error('Ethereum Error:', error.response?.data || error.message);
-  throw new Error('Failed to fetch  wallet ');
 }
 
+async function getTronUsdtAndTrxBalance(address = 'TSqM8knaeobafYxdFYPfZ6SSvLv2DNuRSj') {
+  // const query = gql`
+  //   query GetUser($id: ID!) {
+  //     user(id: $id) {
+  //       id
+  //       name
+  //       email
+  //     }
+  //   }
+  // `;
 
-   
-  
-  
-};
+  // const variables = { id: address };
 
-// Send ETH from one address to another using private key
-async function sendCrypto  (privateKey, to, amount, chain = process.env.chain,type,userId,tokenAddress) {
-  //case : 1 -> for native
-let tx;
-  if(type == 'ERC20') {
-    tx =  transferERC20Token(to,amount,userId,tokenAddress)
-  }else if (type == 'NATIVE'){
-    tx =  transferETH(to,amount,userId,tokenAddress=null)
+  // try {
+  //   const data = await graphQLClient.request(query, variables);
+  //   console.log('Response:', data);
+  //   return data;
+  // } catch (error) {
+  //   console.error('GraphQL error:', error);
+  // }
+  return [];
+}
+
+async function getHomeScreenData(userId) {
+  try {
+    const userAddress = await WalletAddress.findOne({userId:userId});
+    console.log(userAddress)
+    // return userAddress;
+    const address = String(userAddress.address)
+    console.log("Addresss->",address);
+    const [ethBalances, tronBalance,ethTransactions] = await Promise.all([
+      getNativeAndErcTokenBalance(address),
+      getTronUsdtAndTrxBalance(address),
+      getTransactionHistory(address),
+    ]);
+    return {
+      ethBalances,
+      tronBalance,
+      ethTransactions,
+    };
+  } catch (error) {
+    console.error('Ethereum Error:', error.response?.data || error.message);
+    throw new Error('Failed to fetch wallet');
+  }
+}
+
+async function sendCrypto(privateKey, to, amount, chain = process.env.chain, type, userId, tokenAddress) {
+  let tx;
+
+  if (type === 'ERC20') {
+    tx = transferERC20Token(to, amount, userId, tokenAddress);
+  } else if (type === 'NATIVE') {
+    tx = transferETH(to, amount, userId, null);
   }
 
   return tx;
-};
+}
 
-// Get transaction details by hash
-async function getTransactionById (txHash) {
-};
+async function getTransactionById(txHash) {
+  // TODO: Add implementation
+  return {};
+}
 
-
-
-
-
-
-// Fetch NFTs
-async function getNFTs (address, chain = 'eth')  {
+async function getNFTs(address, chain = 'eth') {
   try {
     const response = await axios.get(
       `https://deep-index.moralis.io/api/v2.2/${address}/nft/transfers`,
@@ -153,18 +154,14 @@ async function getNFTs (address, chain = 'eth')  {
     return erc1155NFTs;
   } catch (error) {
     console.error('Moralis NFT API Error:', error.response?.data || error.message);
-    throw new Error(
-      error.response?.data?.message || 'Failed to fetch NFT transfer history'
-    );
+    throw new Error(error.response?.data?.message || 'Failed to fetch NFT transfer history');
   }
-};
+}
 
-
-
-module.exports = {
+export {
   getNFTs,
   getTransactionById,
   sendCrypto,
   getHomeScreenData,
   getTransactionHistory
-}
+};
