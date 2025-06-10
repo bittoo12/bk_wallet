@@ -7,14 +7,15 @@
         network: "Ethereum",
         type: "ERC20"
     },
-    BRIDGETOKEN : {
-	address : "0x1Da20BF1e5E5AEA2834239cB1319535fB23f2343",
-	decimals: 18,
-        symbol: "BT",
-        name: "BRIDGE TOKEN",
-        network: "Ethereum",
-        type: "ERC20"
-    },
+    
+//     BRIDGETOKEN : {
+// 	address : "0x1Da20BF1e5E5AEA2834239cB1319535fB23f2343",
+// 	decimals: 18,
+//         symbol: "BT",
+//         name: "BRIDGE TOKEN",
+//         network: "Ethereum",
+//         type: "ERC20"
+//     },
     USDT : {
         address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
         decimals: 6,
@@ -24,12 +25,20 @@
         type: "ERC20"
     },
     USDT_TRON : {
-        address: "",
+        address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
         decimals: 6,
         symbol: "USDT",
         name: "Tether USD",
         network: "Tron",
         type: "ERC20"
+    },
+    TRX : {
+        address: "0x00",
+        decimals: 6,
+        symbol: "TRX",
+        name: "Tron",
+        network: "Tron",
+        type: "NATIVE"
     },
     ETH : {
         address: "0x00",

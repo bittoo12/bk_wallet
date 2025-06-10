@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 const {generateNextAddress} = require('./../utils/addressCreator')
 const mongoose = require('mongoose');
 const WalletAddress = require("../models/WalletAddress");
+const {passwordEncrypt,decryptPassword}=require('./../utils/encryption');
 
 function generateReferralCode(length = 8) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -25,6 +26,7 @@ function createReferralLink(referralCode, baseUrl = 'https://example.com/referra
   console.log(`${baseUrl}?code=${referralCode}`)
   return `${baseUrl}?code=${referralCode}`;
 }
+
 
 
 // File: controllers/authController.js
@@ -59,7 +61,8 @@ const register = async (req, res) => {
     });
     if (existingUser) return res.status(400).json({ error: "User already exists" });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await passwordEncrypt(password)
     const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const uniqueReferralCode = await generateReferralCode();
@@ -78,8 +81,14 @@ const register = async (req, res) => {
       mobileOtp,
       mobileOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
       referralCode: uniqueReferralCode,
-      referralLink: uniqueReferralLink
+      referralLink: uniqueReferralLink,
+      profilePhoto:null,
+      language :'ENG',
+      currency:'INR',
+      notification:true
     });
+
+    console.log("newUser->>>>",newUser)
 
     const user = await newUser.save();
     await generateNextAddress('admin', user._id);
@@ -99,10 +108,14 @@ const login = async (req, res) => {
     let user, isMatch = false;
 
     if (pin) {
-      user = await User.findOne({ pin: { $ne: null } });
+      user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "No user has set a PIN" });
 
-      isMatch = await bcrypt.compare(pin, user.pin);
+      // isMatch = await bcrypt.compare(pin, user.pin);
+      const decryptedPin = decryptPassword(user.pin.encryptedData,user.pin.key,user.pin.iv);
+      if(decryptedPin == pin) {
+        isMatch = true;
+      }
       if (!isMatch) return res.status(401).json({ message: "Invalid PIN" });
     } else {
       if (!mobileNumber || !password || !countryCode) {
@@ -110,8 +123,13 @@ const login = async (req, res) => {
       }
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "User not found" });
-
-      isMatch = await bcrypt.compare(password, user.password);
+console.log("user->>>",user);
+      // isMatch = await bcrypt.compare(password, user.password);
+      // const encryptedPassword = passwordEncrypt(password);
+      const decryptedPassword = decryptPassword(user.password.encryptedData,user.password.key,user.password.iv);
+    if(decryptedPassword == password) {
+      isMatch = true;
+    }
       if (!isMatch) return res.status(401).json({ message: "Invalid password" });
     }
 
@@ -125,6 +143,10 @@ const login = async (req, res) => {
         mobileNumber: user.mobileNumber,
         countryCode: user.countryCode,
         email: user.email,
+        profilePhoto : user.profilePhoto,
+        currency:user.currency,
+        language:user.language,
+        notification:user.notification
       },
     });
   } catch (error) {
@@ -294,7 +316,7 @@ const setPin = async (req, res) => {
             return res.status(404).json({ error: "User not found" });
           }
       
-          const hashedPin = await bcrypt.hash(pin, 10);
+          const hashedPin = passwordEncrypt(pin);
           user.pin = hashedPin;
           await user.save();
       
@@ -321,7 +343,7 @@ const getProfile = async (req, res) => {
       
           // Fetch user profile
           const user = await User.findById(userId).select(
-            'country fullName userName email mobileNumber pin password countryCode profilePhoto -_id'
+            'country fullName userName email mobileNumber pin password countryCode language currency notification profilePhoto -_id'
           );
       
           if (!user) {
@@ -360,7 +382,10 @@ const updateProfile = async (req, res) => {
       countryCode,
       profilePhoto,
       pin,
-      password
+      password,
+      notification,
+      currency,
+      language
     } = req.body;
 
     const user = await User.findById(userId);
@@ -391,17 +416,20 @@ const updateProfile = async (req, res) => {
     // ✅ Optional fields
     if (countryCode) user.countryCode = countryCode;
     if (profilePhoto) user.profilePhoto = profilePhoto;
+    if(notification) user.notification = notification
+    if(currency) user.currency = currency
+    if(language) user.language = language
 
     // ✅ PIN update with hashing
     if (pin) {
-      const salt = await bcrypt.genSalt(10);
-      user.pin = await bcrypt.hash(pin, salt);
+      // const salt = await bcrypt.genSalt(10);
+      user.pin = passwordEncrypt(pin)
     }
 
     // ✅ Password update with hashing
     if (password) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
+ 
+      user.password = passwordEncrypt(password);
     }
 
     await user.save();

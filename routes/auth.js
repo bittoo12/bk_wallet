@@ -13,4 +13,10 @@ router.post('/auth/set-pin',authMiddleware,setPin);
 router.get('/auth/profile',authMiddleware,getProfile);
 router.put('/auth/update-profile',authMiddleware,updateProfile);
 router.get('/auth/receive-crypto',authMiddleware,receiveCrypto)
+
+
+
+    
+
+
 module.exports = router;
