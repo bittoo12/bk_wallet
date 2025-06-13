@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
     profilePhoto: { type: String },
 
     language: { type: String, default: 'ENG' },
-    currency: { type: String, default: 'INR' },
+    currency: { type: String, default: 'USD' },
     notification: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -150,8 +150,12 @@ async function getNFTs(address, chain = 'eth') {
       }
     );
 
-    const erc1155NFTs = response.data.result.filter(nft => nft.contract_type === 'ERC1155');
+
+    // const erc1155NFTs = response.data.result.filter(nft => nft.contract_type === 'ERC1155');
+
+    const erc1155NFTs = response.data.result;
     return erc1155NFTs;
+    // return  response.data.result;
   } catch (error) {
     console.error('Moralis NFT API Error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.message || 'Failed to fetch NFT transfer history');
