@@ -136,7 +136,7 @@ async function getTransactionById(txHash) {
 async function getNFTs(address, chain = 'eth') {
   try {
     const response = await axios.get(
-      `https://deep-index.moralis.io/api/v2.2/${address}/nft/transfers`,
+      `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=eth&format=decimal&normalizeMetadata=true&media_items=false&include_prices=false`,
       {
         headers: {
           'X-API-Key': process.env.MORALIS_API_KEY,
