@@ -142,11 +142,11 @@ async function getNFTs(address, chain = 'eth') {
           'X-API-Key': process.env.MORALIS_API_KEY,
           accept: 'application/json',
         },
-        params: {
-          chain,
-          format: 'decimal',
-          order: 'DESC',
-        },
+        // params: {
+        //   chain,
+        //   format: 'decimal',
+        //   order: 'DESC',
+        // },
       }
     );
 
