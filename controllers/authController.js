@@ -87,6 +87,7 @@ export const register = async (req, res) => {
 
     const user = await newUser.save();
     await generateNextAddress('admin', user._id);
+    // await createTronAddress(user._id)
 
     res.status(201).json({
       message: "User registered. OTPs sent to email and mobile."

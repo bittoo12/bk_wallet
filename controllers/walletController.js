@@ -3,7 +3,7 @@ import {
   getHomeScreenData,
   sendCrypto as sendCryptoService,
   getTransactionById as getTxById,
-  getTransactionHistory as getTxHistory,
+  getTransactionHistoryAll ,
   getNFTs,
 } from '../services/walletService.js';
 
@@ -28,8 +28,8 @@ export const homeScreen = async (req, res) => {
 export const sendCrypto = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const { privateKey, to, amount, chain, type, tokenAddress } = req.body;
-    const result = await sendCryptoService(privateKey, to, amount, chain, type, userId, tokenAddress);
+    const {  to, amount, chain, type, tokenAddress } = req.body;
+    const result = await sendCryptoService( to, amount, chain, type, userId, tokenAddress);
     return res.status(200).json({
       success: true,
       message: "Transaction successful",
@@ -65,14 +65,14 @@ export const getTransactionById = async (req, res) => {
 
 export const getTransactionHistory = async (req, res) => {
   try {
-    const { address } = req.params;
-    const { chain, filter } = req.query;
 
-    if (!address) {
-      return res.status(400).json({ success: false, message: 'Wallet address is required' });
-    }
+    
+    const userId = req.user?._id;
+    
 
-    const result = await getTxHistory(address, chain, filter);
+  
+
+    const result = await getTransactionHistoryAll(userId);
     return res.status(200).json({
       success: true,
       message: "Transaction history fetched successfully",

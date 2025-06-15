@@ -13,7 +13,7 @@ const router = express.Router();
 router.get('/home',authMiddleware, homeScreen);
 router.post('/send', authMiddleware, sendCrypto);
 router.get('/transaction/:id', getTransactionById);
-router.get('/history/:address', getTransactionHistory);
+router.get('/history/',authMiddleware, getTransactionHistory);
 router.get('/nfts/:address', getMyNFTs);
 
 export default router;

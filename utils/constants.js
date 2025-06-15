@@ -25,6 +25,15 @@ export const TOKENS = {
 	    network: "Tron",
 	    type: "ERC20"
 	},
+
+	TEST_TRON : {
+		address : "TXcjQRfi4Fe9JaidiAkTrEv7VidsK8ANLL",
+		decimals: 6,
+		symbol: "USDT",
+		name: "Tether USD",
+		network: "Tron",
+		type: "ERC20"
+	},
 	TRX: {
 	    address: "0x00",
 	    decimals: 6,

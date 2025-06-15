@@ -3,8 +3,10 @@ import mongoose from 'mongoose';
 const WalletAddressSchema = new mongoose.Schema({
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'WalletOwner' },
   userId: { type: String, required: true },
-  address: { type: String, required: true },
-  privateKey: { type: String, required: true },
+  ethAddress: { type: String, required: false },
+  tronAddress : {type: String, required: false },
+  privateKeyEth: { type: String, required: false },
+  privateKeyTron :{type: String, required: false},
   derivationPath: { type: String, required: true },
   index: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now },

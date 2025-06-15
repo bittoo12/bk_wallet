@@ -61,8 +61,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Connect DB and start server
 connectDB().then(async () => {
   const userId = "admin";
-  await createInitialWallet(userId);
-  // await createAddressForOwner(userId, mnemonic, 0);
+  // await createInitialWallet(userId);
+  await createAddressForOwner(userId, 0);
   // await generateNextAddress(userId);
 
   app.listen(process.env.PORT, () =>

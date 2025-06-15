@@ -1,9 +1,10 @@
 import express from 'express';
 import WalletOwner from './../models/WalletOwner.js';
 import WalletAddress from './../models/WalletAddress.js';
-import { ethers } from 'ethers';
+import { ethers,Wallet } from 'ethers';
 import QRCode from 'qrcode';
 import { encrypt, decrypt } from './encryption.js';
+import {TronWeb} from 'tronweb';
 
 const app = express();
 
@@ -18,26 +19,60 @@ const generateQRCode = async (walletAddress) => {
 };
 
 // Create new address using mnemonic + index
-export const createAddressForOwner = async (ownerId, mnemonic, index) => {
-  const owner = await WalletOwner.findById(ownerId);
-  if (!owner) {
-    throw new Error('Wallet owner not found');
+export const createAddressForOwner = async (ownerId, index) => {
+  // const owner = await WalletOwner.findById(ownerId);
+  // if (!owner) {
+  //   throw new Error('Wallet owner not found');
+  // }
+  const existing = await WalletOwner.findOne({ userId:ownerId });
+  if (existing) {
+    console.log('Wallet already exists.');
+    return;
   }
 
-  const hdNode = ethers.utils.HDNode.fromMnemonic(mnemonic);
-  const wallet = new ethers.Wallet(hdNode.privateKey);
+  const wallet = Wallet.createRandom();
+  const mnemonic = wallet.mnemonic.phrase;
   const encryptedPrivateKey = encrypt(wallet.privateKey);
+
+
+
+  // const wallet = new ethers.Wallet(hdNode.privateKey);
+  // const mnemonic = wallet.mnemonic.phrase;
+  const hdNode = ethers.utils.HDNode.fromMnemonic(mnemonic);
+  // const encryptedPrivateKey = encrypt(wallet.privateKey);
   const qrCode = await generateQRCode(wallet.address);
 
+
+
+const tronWeb = new TronWeb({
+    fullHost: "https://nile.tronscanapi.com"    // Testnet rpc url
+});
+// Create new Tron account
+const account = await tronWeb.createAccount();
+const encryptedPrivateKeyTron = await encrypt(account.privateKey);
+
+const owner = await WalletOwner.create({
+  userId:ownerId,
+  walletAddressEth: wallet.address,//eth
+  privateKeyEth: encryptedPrivateKey,//eth
+  mnemonic,
+  walletAddressTron:account.address.base58,//tron
+  privateKeyTron:encryptedPrivateKeyTron//tron
+});
+
   await WalletAddress.create({
-    ownerId,
+    ownerId : owner._id,
     userId: owner.userId,
-    address: wallet.address,
-    privateKey: encryptedPrivateKey,
+    ethAddress: wallet.address,//eth
+    privateKeyEth: encryptedPrivateKey,//eth
     derivationPath: `m/44'/60'/0'/0/${index}`,
     index,
     qrCodeBase64: qrCode,
+    tronAddress : account.address.base58,//tron
+    privateKeyTron : encryptedPrivateKeyTron//tron
   });
+
+
 
   console.log(`Address ${index} generated and saved: ${wallet.address}`);
 };
@@ -60,15 +95,29 @@ export const generateNextAddress = async (ownerId, userId) => {
   const encryptedPrivateKey = encrypt(wallet.privateKey);
   const qrCode = await generateQRCode(wallet.address);
 
+
+  // tron address creation
+
+  const tronWeb = new TronWeb({
+    fullHost: "https://nile.tronscanapi.com"    // Testnet rpc url
+});
+// Create new Tron account
+const account = await tronWeb.createAccount();
+
+
+const encryptedPrivateKeyTron = await encrypt(account.privateKey);
+
   try {
     const w_address = await WalletAddress.create({
       ownerId: owner._id,
       userId: userId,
-      address: wallet.address,
-      privateKey: encryptedPrivateKey,
+      ethAddress: wallet.address,
+      privateKeyEth: encryptedPrivateKey,
       derivationPath: `m/44'/60'/0'/0/${nextIndex}`,
       index: nextIndex,
       qrCodeBase64: qrCode,
+      tronAddress : account.address.base58,
+      privateKeyTron : encryptedPrivateKeyTron
     });
 
     console.log(w_address);
@@ -76,3 +125,32 @@ export const generateNextAddress = async (ownerId, userId) => {
     console.error(err);
   }
 };
+
+
+// export const createTronAddress = async (userId) => {
+//   try {
+      
+//       const tronWeb = new TronWeb({
+//           fullHost: "https://nile.tronscanapi.com"    // Testnet rpc url
+//       });
+
+//       // Create new Tron account
+//       const account = await tronWeb.createAccount();
+//       console.log("Generated Tron address:", account.address.base58);
+
+//       // Encrypt the private key before saving
+//       const encryptedPrivateKey = await encrypt(account.privateKey);
+
+//       // Save the address to database
+//       const address = await WalletAddress.update(
+//         {userId : userId},
+//         { $set: { tronAddress: account.address.base58,
+//         privateKeyTron : encryptedPrivateKey } },
+//       )
+
+//       console.log("New Tron wallet address created: and updated", address);
+//   } catch (error) {
+//       console.error("Error in createTronAddress:", error);
+//       throw error;
+//   }
+// };

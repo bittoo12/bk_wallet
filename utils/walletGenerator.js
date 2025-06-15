@@ -28,27 +28,16 @@ const createInitialWallet = async (userId) => {
   const mnemonic = wallet.mnemonic.phrase;
   const encryptedPrivateKey = encrypt(wallet.privateKey);
 
-  const owner = await WalletOwner.create({
-    userId,
-    walletAddress: wallet.address,
-    privateKey: encryptedPrivateKey,
-    mnemonic,
-  });
+  // const owner = await WalletOwner.create({
+  //   userId,
+  //   walletAddressEth: wallet.address,
+  //   privateKeyEth: encryptedPrivateKey,
+  //   mnemonic,
+  //   walletAddressTron:,
+  //   privateKeyTron:
+  // });
 
-  const hdNode = ethersUtils.HDNode.fromMnemonic(mnemonic);
-  const wallet_2 = new Wallet(hdNode.privateKey);
-  const encryptedPrivateKey_2 = encrypt(wallet.privateKey);
-  const qrCode = await generateQRCode(wallet.address);
 
-  await WalletAddress.create({
-    ownerId: owner._id,
-    userId: owner.userId,
-    address: wallet_2.address,
-    privateKey: encryptedPrivateKey_2,
-    derivationPath: `m/44'/60'/0'/0/0`,
-    index: 0,
-    qrCodeBase64: qrCode,
-  });
 };
 
 export { createInitialWallet };
