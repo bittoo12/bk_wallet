@@ -406,7 +406,7 @@ export const receiveCrypto = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(400).json({ success: false, message: "User ID not found in request." });
 
-    const wallets = await WalletAddress.find({ userId }).select("address qrCodeBase64 -_id");
+    const wallets = await WalletAddress.find({ userId }).select("ethAddress tronAddress qrCodeBaseTron qrCodeBaseEth -_id");
     if (!wallets || wallets.length === 0) return res.status(404).json({ success: false, message: "No wallet addresses found for this user." });
 
     return res.status(200).json({

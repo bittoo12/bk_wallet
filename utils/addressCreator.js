@@ -93,7 +93,7 @@ export const generateNextAddress = async (ownerId, userId) => {
   const childNode = hdRoot.derivePath(`m/44'/60'/0'/0/${nextIndex}`);
   const wallet = new ethers.Wallet(childNode.privateKey);
   const encryptedPrivateKey = encrypt(wallet.privateKey);
-  const qrCode = await generateQRCode(wallet.address);
+
 
 
   // tron address creation
@@ -107,6 +107,9 @@ const account = await tronWeb.createAccount();
 
 const encryptedPrivateKeyTron = await encrypt(account.privateKey);
 
+const qrCodeEth = await generateQRCode(wallet.address);
+const qrCodeTron =  await generateQRCode(account.address.base58);
+
   try {
     const w_address = await WalletAddress.create({
       ownerId: owner._id,
@@ -115,9 +118,10 @@ const encryptedPrivateKeyTron = await encrypt(account.privateKey);
       privateKeyEth: encryptedPrivateKey,
       derivationPath: `m/44'/60'/0'/0/${nextIndex}`,
       index: nextIndex,
-      qrCodeBase64: qrCode,
       tronAddress : account.address.base58,
-      privateKeyTron : encryptedPrivateKeyTron
+      privateKeyTron : encryptedPrivateKeyTron,
+      qrCodeBaseTron : qrCodeTron,
+      qrCodeBaseEth : qrCodeEth
     });
 
     console.log(w_address);
