@@ -123,7 +123,6 @@ async function getHomeScreenData(userId) {
   try {
     const userAddress = await WalletAddress.findOne({userId:userId});
     console.log(userAddress)
-    // return userAddress;
     const ethAddress = String(userAddress.ethAddress)
     const tronAddress = String(userAddress.tronAddress)
     console.log("eth,-",ethAddress,"tronAddress,-",tronAddress)
@@ -201,9 +200,12 @@ export const getTransactionHistoryAll = async(userId) => {
   try {
     const userAddress = await WalletAddress.findOne({userId:userId});
     console.log(userAddress)
+
+    const ethAddress  = '0xdadB0d80178819F2319190D340ce9A924f783711';
+    const tronAddress = 'TULFzF7w5Wfq7X2QoCQHhfodKYZGtHnZuD'
     // return userAddress;
-    const ethAddress = String(userAddress.ethAddress)
-    const tronAddress = String(userAddress.tronAddress)
+    // const ethAddress = String(userAddress.ethAddress)
+    // const tronAddress = String(userAddress.tronAddress)
     const [ethTransactions,tronTransactions] = await Promise.all([
       getTransactionHistoryEth(ethAddress),
       getTronTransactions(tronAddress)
