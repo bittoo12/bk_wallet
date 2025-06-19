@@ -74,7 +74,7 @@ const getTronBalance = async (address) => {
   // const tronaddress = 'TKChGihEuUw7LcQz6VMg2PXjkjZ6vtwXbh'
   // const url = `https://api.trongrid.io/v1/accounts/${address}`;
  // for testnet
-  const url = `https://api.shasta.trongrid.io/v1/accounts/${address}`;
+  const url = `https://api.trongrid.io/v1/accounts/${address}`;
 
   try {
     const res = await axios.get(url);
@@ -95,7 +95,7 @@ const  getTronTransactions = async (address) => {
   // const tronaddress = 'TKChGihEuUw7LcQz6VMg2PXjkjZ6vtwXbh'
 // const url = `https://api.trongrid.io/v1/accounts/${address}/transactions`;
   // for testnet
-  const url = `https://api.shasta.trongrid.io/v1/accounts/${address}/transactions`;
+  const url = `https://api.trongrid.io/v1/accounts/${address}/transactions`;
 try {
 const response = await axios.get(url, {
 params: {
@@ -123,8 +123,8 @@ async function getHomeScreenData(userId) {
   try {
     const userAddress = await WalletAddress.findOne({userId:userId});
     console.log(userAddress)
-    const ethAddress = String(userAddress.ethAddress)
-    const tronAddress = String(userAddress.tronAddress)
+    const ethAddress =  '0xdadB0d80178819F2319190D340ce9A924f783711'; //String(userAddress.ethAddress)
+    const tronAddress =  'TULFzF7w5Wfq7X2QoCQHhfodKYZGtHnZuD' //String(userAddress.tronAddress)
     console.log("eth,-",ethAddress,"tronAddress,-",tronAddress)
     const [ethBalances,ethTransactions,tronBalance,tronTransactions] = await Promise.all([
       getNativeAndErcTokenBalance(ethAddress),
