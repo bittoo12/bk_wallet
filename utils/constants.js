@@ -43,7 +43,7 @@ export const TOKENS = {
 	    type: "NATIVE"
 	},
 	ETH: {
-	    address: "0x00",
+	    address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 	    decimals: 18,
 	    symbol: "ETH",
 	    name: "Ethereum",

@@ -26,7 +26,37 @@ const getNativeAndErcTokenBalance = async(address)  => {
       throw new Error('Invalid response structure from Moralis API');
     }
 
-    return response.data.result;
+
+    const ethbalanceData = response.data.result;
+
+    console.log(ethbalanceData);
+
+
+
+
+const targetAddresses = [
+  '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  '0xdAC17F958D2ee523a2206206994597C13D831ec7'
+].map(addr => addr.toLowerCase());
+
+console.log("targetAddresses->>>",targetAddresses)
+
+const filtered = response.data.result
+  .filter(token =>
+    targetAddresses.includes(token.token_address.toLowerCase())
+  )
+  .map(token => ({
+    symbol: token.symbol,
+    name: token.name,
+    token_address: token.token_address,
+    balance: token.balance,
+    usd_price: token.usd_price
+  }));
+
+console.log(filtered);
+return  filtered;
+
   } catch (error) {
     if (error.response) {
       console.error(`API Error: ${error.response.status} - ${error.response.statusText}`);
@@ -58,7 +88,8 @@ const getTransactionHistoryEth = async(address, chain = process.env.CHAIN || 'et
           },
         }
       );
-
+        const ethTransactionsData = response.data;
+        // console.log("ethTransactionsData",ethTransactionsData)
     return response.data;
     }
   } catch (error) {
@@ -82,7 +113,23 @@ const getTronBalance = async (address) => {
     if(res.data.data[0] == undefined) {
       return [];
     }
-    return res.data.data[0] // balance is in SUN (1 TRX = 1,000,000 SUN)
+
+    const usdtTron = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+
+    const tronresult = res.data.data[0].trc20.find(obj => obj[usdtTron]);
+    console.log("tron result ->>>",tronresult);
+    const tronbalance = tronresult ? tronresult[usdtTron] : null;
+
+    let returnedObj = {
+      trxBalance : res.data.data[0].balance,
+      usdtbalance : tronbalance,
+      usdTrxBalance  : (res.data.data[0].balance / 1000000 ) * 0.27 //fix for now 
+    }
+console.log("the returned obj is ->>>>",returnedObj);
+    console.log("the balance is->>>>",res.data.data[0].balance)
+
+    console.log("the balance is->>>>",res.data.data[0].trc20)
+    return returnedObj // balance is in SUN (1 TRX = 1,000,000 SUN)
   } catch (err) {
     console.error(err.message);
   }
