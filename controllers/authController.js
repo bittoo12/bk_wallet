@@ -30,10 +30,10 @@ function createReferralLink(referralCode, baseUrl = 'https://example.com/referra
 export const register = async (req, res) => {
   try {
     const schema = Joi.object({
-      country: Joi.string().required(),
-      fullName: Joi.string().required(),
-      userName: Joi.string().required(),
-      email: Joi.string().email().required(),
+      // country: Joi.string().required(),
+      // fullName: Joi.string().required(),
+      // userName: Joi.string().required(),
+      // email: Joi.string().email().required(),
       mobileNumber: Joi.string().pattern(/^[0-9]{10}$/).required(),
       countryCode: Joi.string().required(),
       password: Joi.string().min(6).required(),
@@ -43,36 +43,36 @@ export const register = async (req, res) => {
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const {
-      country,
-      fullName,
-      userName,
-      email,
+      // country,
+      // fullName,
+      // userName,
+      // email,
       mobileNumber,
       countryCode,
       password
     } = req.body;
 
     const existingUser = await User.findOne({
-      $or: [{ email }, { mobileNumber }, { userName }]
+      $or: [/*{ email },*/ { mobileNumber }/*, { userName }*/]
     });
     if (existingUser) return res.status(400).json({ error: "User already exists" });
 
     const hashedPassword = await passwordEncrypt(password);
-    const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    // const emailOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const mobileOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const uniqueReferralCode = await generateReferralCode();
     const uniqueReferralLink = await createReferralLink(uniqueReferralCode);
 
     const newUser = new User({
-      country,
+      /*country,
       fullName,
       userName,
-      email,
+      email,*/
       mobileNumber,
       countryCode,
       password: hashedPassword,
-      emailOtp,
-      emailOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      /*emailOtp,
+      emailOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),*/
       mobileOtp,
       mobileOtpExpiry: new Date(Date.now() + 10 * 60 * 1000),
       referralCode: uniqueReferralCode,
@@ -90,7 +90,7 @@ export const register = async (req, res) => {
     // await createTronAddress(user._id)
 
     res.status(201).json({
-      message: "User registered. OTPs sent to email and mobile."
+      message: "User registered. OTPs sent to mobile."
     });
   } catch (err) {
     console.error("Registration error:", err);
@@ -107,6 +107,10 @@ export const login = async (req, res) => {
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "No user has set a PIN" });
 
+      if(!user.isMobileVerified) {
+        return res.status(404).json({ message: "Please verify your mobile Number" });
+      }
+
       const decryptedPin = decryptPassword(user.pin.encryptedData, user.pin.key, user.pin.iv);
       if (decryptedPin == pin) {
         isMatch = true;
@@ -118,6 +122,9 @@ export const login = async (req, res) => {
       }
       user = await User.findOne({ mobileNumber, countryCode });
       if (!user) return res.status(404).json({ message: "User not found" });
+      if(!user.isMobileVerified) {
+        return res.status(404).json({ message: "Please verify your mobile Number" });
+      }
       console.log("user->>>", user);
 
       const decryptedPassword = decryptPassword(user.password.encryptedData, user.password.key, user.password.iv);
@@ -357,18 +364,24 @@ export const updateProfile = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(400).json({ success: false, message: "User ID is missing from request." });
 
-    const { email, mobileNumber, countryCode, profilePhoto, pin, password, notification, currency, language } = req.body;
+    const { email,country, mobileNumber,fullName, countryCode, profilePhoto, pin, password, notification, currency, language,userName } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found." });
 
-    if (email && email !== user.email) {
+    if (email) {
       const existingEmail = await User.findOne({ email });
       if (existingEmail) return res.status(400).json({ success: false, message: "Email is already in use." });
       user.email = email;
       user.isEmailVerified = false;
     }
 
+    if(userName) {
+      const existingUserName = await User.findOne({userName});
+      if(existingUserName)return res.status(400).json({ success: false, message: "User Name already in use." });
+      user.userName = userName;
+      // user.isEmailVerified = false;
+    }
     if (mobileNumber && mobileNumber !== user.mobileNumber) {
       const existingMobile = await User.findOne({ mobileNumber });
       if (existingMobile) return res.status(400).json({ success: false, message: "Mobile number is already in use." });
@@ -377,6 +390,8 @@ export const updateProfile = async (req, res) => {
     }
 
     if (countryCode) user.countryCode = countryCode;
+    if(country) user.country = country;
+    if(fullName) user.fullName= fullName;
     if (profilePhoto) user.profilePhoto = profilePhoto;
     if (notification) user.notification = notification;
     if (currency) user.currency = currency;
