@@ -362,59 +362,170 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user?._id;
-    if (!userId) return res.status(400).json({ success: false, message: "User ID is missing from request." });
+    if (!userId)
+      return res.status(400).json({
+        success: false,
+        message: "User ID is missing from request.",
+      });
 
-    const { email,country, mobileNumber,fullName, countryCode, profilePhoto, pin, password, notification, currency, language,userName } = req.body;
+    const {
+      email,
+      country,
+      mobileNumber,
+      fullName,
+      countryCode,
+      profilePhoto,
+      pin,
+      password,
+      notification,
+      currency,
+      language,
+      userName,
+    } = req.body;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
 
-    if (email) {
+    // Only update if changed
+    if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
-      if (existingEmail) return res.status(400).json({ success: false, message: "Email is already in use." });
+      if (existingEmail && existingEmail._id.toString() !== userId.toString())
+        return res
+          .status(400)
+          .json({ success: false, message: "Email is already in use." });
+
       user.email = email;
       user.isEmailVerified = false;
     }
 
-    if(userName) {
-      const existingUserName = await User.findOne({userName});
-      if(existingUserName)return res.status(400).json({ success: false, message: "User Name already in use." });
+    if (userName && userName !== user.userName) {
+      const existingUserName = await User.findOne({ userName });
+      if (
+        existingUserName &&
+        existingUserName._id.toString() !== userId.toString()
+      )
+        return res
+          .status(400)
+          .json({ success: false, message: "Username already in use." });
+
       user.userName = userName;
-      // user.isEmailVerified = false;
     }
+
     if (mobileNumber && mobileNumber !== user.mobileNumber) {
       const existingMobile = await User.findOne({ mobileNumber });
-      if (existingMobile) return res.status(400).json({ success: false, message: "Mobile number is already in use." });
+      if (
+        existingMobile &&
+        existingMobile._id.toString() !== userId.toString()
+      )
+        return res
+          .status(400)
+          .json({ success: false, message: "Mobile number is already in use." });
+
       user.mobileNumber = mobileNumber;
       user.isMobileVerified = false;
     }
 
-    if (countryCode) user.countryCode = countryCode;
-    if(country) user.country = country;
-    if(fullName) user.fullName= fullName;
-    if (profilePhoto) user.profilePhoto = profilePhoto;
-    if (notification) user.notification = notification;
-    if (currency) user.currency = currency;
-    if (language) user.language = language;
+    if (countryCode && countryCode !== user.countryCode)
+      user.countryCode = countryCode;
 
-    if (pin) user.pin = passwordEncrypt(pin);
-    if (password) user.password = passwordEncrypt(password);
+    if (country && country !== user.country) user.country = country;
+
+    if (fullName && fullName !== user.fullName) user.fullName = fullName;
+
+    if (profilePhoto && profilePhoto !== user.profilePhoto)
+      user.profilePhoto = profilePhoto;
+
+    if (notification && notification !== user.notification)
+      user.notification = notification;
+
+    if (currency && currency !== user.currency) user.currency = currency;
+
+    if (language && language !== user.language) user.language = language;
+
+    // if (pin && !await compareHashed(pin, user.pin)) {
+      user.pin = passwordEncrypt(pin);
+    // }
+
+    // if (password && !await compareHashed(password, user.password)) {
+      user.password = passwordEncrypt(password);
+    // }
 
     await user.save();
 
     return res.status(200).json({
       success: true,
-      message: "Profile updated successfully."
+      message: "Profile updated successfully.",
     });
   } catch (err) {
     console.error("Error updating profile:", err);
     return res.status(500).json({
       success: false,
       message: "Internal server error. Please try again later.",
-      error: err.message
+      error: err.message,
     });
   }
 };
+
+
+// export const updateProfile = async (req, res) => {
+//   try {
+//     const userId = req.user?._id;
+//     if (!userId) return res.status(400).json({ success: false, message: "User ID is missing from request." });
+
+//     const { email,country, mobileNumber,fullName, countryCode, profilePhoto, pin, password, notification, currency, language,userName } = req.body;
+
+//     const user = await User.findById(userId);
+//     if (!user) return res.status(404).json({ success: false, message: "User not found." });
+
+//     if (email) {
+//       const existingEmail = await User.findOne({ email });
+//       if (existingEmail) return res.status(400).json({ success: false, message: "Email is already in use." });
+//       user.email = email;
+//       user.isEmailVerified = false;
+//     }
+
+//     if(userName) {
+//       const existingUserName = await User.findOne({userName});
+//       if(existingUserName)return res.status(400).json({ success: false, message: "User Name already in use." });
+//       user.userName = userName;
+//       // user.isEmailVerified = false;
+//     }
+//     if (mobileNumber && mobileNumber !== user.mobileNumber) {
+//       const existingMobile = await User.findOne({ mobileNumber });
+//       if (existingMobile) return res.status(400).json({ success: false, message: "Mobile number is already in use." });
+//       user.mobileNumber = mobileNumber;
+//       user.isMobileVerified = false;
+//     }
+
+//     if (countryCode) user.countryCode = countryCode;
+//     if(country) user.country = country;
+//     if(fullName) user.fullName= fullName;
+//     if (profilePhoto) user.profilePhoto = profilePhoto;
+//     if (notification) user.notification = notification;
+//     if (currency) user.currency = currency;
+//     if (language) user.language = language;
+
+//     if (pin) user.pin = passwordEncrypt(pin);
+//     if (password) user.password = passwordEncrypt(password);
+
+//     await user.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Profile updated successfully."
+//     });
+//   } catch (err) {
+//     console.error("Error updating profile:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error. Please try again later.",
+//       error: err.message
+//     });
+//   }
+// };
 
 export const receiveCrypto = async (req, res) => {
   try {
